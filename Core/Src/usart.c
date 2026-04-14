@@ -1,0 +1,293 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    usart.c
+  * @brief   This file provides code for the configuration
+  *          of the USART instances.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "usart.h"
+
+/* USER CODE BEGIN 0 */
+static uint8_t usart1_rx_byte = 0;
+static volatile uint16_t usart1_rx_head = 0;
+static volatile uint16_t usart1_rx_tail = 0;
+static uint8_t usart1_rx_buf[256];
+static uint8_t usart3_rx_byte = 0;
+
+static void usart1_rx_push(uint8_t b)
+{
+  uint16_t next = (uint16_t)((usart1_rx_head + 1u) & 0x00FFu);
+  if (next != usart1_rx_tail) {
+    usart1_rx_buf[usart1_rx_head] = b;
+    usart1_rx_head = next;
+  }
+}
+
+/* USER CODE END 0 */
+
+UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart3;
+
+/* USART1 init function */
+
+void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+/* USART3 init function */
+
+void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
+{
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if(uartHandle->Instance==USART1)
+  {
+  /* USER CODE BEGIN USART1_MspInit 0 */
+
+  /* USER CODE END USART1_MspInit 0 */
+    /* USART1 clock enable */
+    __HAL_RCC_USART1_CLK_ENABLE();
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    /**USART1 GPIO Configuration
+    PA9     ------> USART1_TX
+    PA10     ------> USART1_RX
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_9;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_10;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    /* USART1 interrupt Init */
+    HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(USART1_IRQn);
+  /* USER CODE BEGIN USART1_MspInit 1 */
+    HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(USART1_IRQn);
+
+  /* USER CODE END USART1_MspInit 1 */
+  }
+  else if(uartHandle->Instance==USART3)
+  {
+  /* USER CODE BEGIN USART3_MspInit 0 */
+
+  /* USER CODE END USART3_MspInit 0 */
+    /* USART3 clock enable */
+    __HAL_RCC_USART3_CLK_ENABLE();
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    /**USART3 GPIO Configuration
+    PB10     ------> USART3_TX
+    PB11     ------> USART3_RX
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_10;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_11;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* USART3 interrupt Init */
+    HAL_NVIC_SetPriority(USART3_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(USART3_IRQn);
+  /* USER CODE BEGIN USART3_MspInit 1 */
+
+  /* USER CODE END USART3_MspInit 1 */
+  }
+}
+
+void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
+{
+
+  if(uartHandle->Instance==USART1)
+  {
+  /* USER CODE BEGIN USART1_MspDeInit 0 */
+
+  /* USER CODE END USART1_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_USART1_CLK_DISABLE();
+
+    /**USART1 GPIO Configuration
+    PA9     ------> USART1_TX
+    PA10     ------> USART1_RX
+    */
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_9|GPIO_PIN_10);
+
+    /* USART1 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(USART1_IRQn);
+  /* USER CODE BEGIN USART1_MspDeInit 1 */
+    HAL_NVIC_DisableIRQ(USART1_IRQn);
+
+  /* USER CODE END USART1_MspDeInit 1 */
+  }
+  else if(uartHandle->Instance==USART3)
+  {
+  /* USER CODE BEGIN USART3_MspDeInit 0 */
+
+  /* USER CODE END USART3_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_USART3_CLK_DISABLE();
+
+    /**USART3 GPIO Configuration
+    PB10     ------> USART3_TX
+    PB11     ------> USART3_RX
+    */
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_10|GPIO_PIN_11);
+
+    /* USART3 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(USART3_IRQn);
+  /* USER CODE BEGIN USART3_MspDeInit 1 */
+
+  /* USER CODE END USART3_MspDeInit 1 */
+  }
+}
+
+/* USER CODE BEGIN 1 */
+#include <stdio.h>
+#include "app_event.h"
+#include "cmsis_os.h"
+#include "Drivers/voice_bridge/voice_bridge.h"
+
+extern osEventFlagsId_t printFlagHandle;
+
+int fputc(int c, FILE *stream)
+{
+  uint8_t ch[] = {(uint8_t)c};
+  HAL_UART_Transmit(&huart1, ch, 1, HAL_MAX_DELAY);
+  return c;
+}
+
+int __io_putchar(int ch)
+{
+  uint8_t c = (uint8_t)ch;
+  HAL_UART_Transmit(&huart1, &c, 1, HAL_MAX_DELAY);
+  return ch;
+}
+
+void usart1_start_rx_it(void)
+{
+  HAL_UART_Receive_IT(&huart1, &usart1_rx_byte, 1);
+}
+
+void usart3_start_rx_it(void) {
+  HAL_UART_Receive_IT(&huart3, &usart3_rx_byte, 1);
+}
+
+int usart1_read_byte(uint8_t *out)
+{
+  if (out == NULL) return 0;
+  if (usart1_rx_head == usart1_rx_tail) return 0;
+
+  __disable_irq();
+  if (usart1_rx_head == usart1_rx_tail) {
+    __enable_irq();
+    return 0;
+  }
+  *out = usart1_rx_buf[usart1_rx_tail];
+  usart1_rx_tail = (uint16_t)((usart1_rx_tail + 1u) & 0x00FFu);
+  __enable_irq();
+  return 1;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1) {
+    usart1_rx_push(usart1_rx_byte);
+
+    osEventFlagsSet(printFlagHandle, APP_EVENT_CMD_RECV);
+
+    HAL_UART_Receive_IT(&huart1, &usart1_rx_byte, 1);
+  }
+
+  if (huart->Instance == USART3) {
+    vb_uart_rx_callback(usart3_rx_byte);
+
+    osEventFlagsSet(printFlagHandle, APP_EVENT_CMD_RECV);
+
+    HAL_UART_Receive_IT(&huart3, &usart3_rx_byte, 1);
+  }
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1) {
+    HAL_UART_Receive_IT(&huart1, &usart1_rx_byte, 1);
+  }
+
+  if (huart->Instance == USART3) {
+    HAL_UART_Receive_IT(&huart3, &usart3_rx_byte, 1);
+  }
+}
+/* USER CODE END 1 */
