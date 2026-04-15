@@ -2,6 +2,10 @@
 
 [English README](README.md)
 
+## 演示视频
+
+- Bilibili: https://www.bilibili.com/video/BV165QEBjEX6/
+
 基于 STM32CubeMX 生成并持续扩展的 STM32F103xE 电机控制工程，集成了 FreeRTOS 任务调度、AS5600 角度反馈、无电流采样的电压型 FOC 控制、本地串口命令接口，以及可选的语音命令桥接链路。
 
 ## 项目定位

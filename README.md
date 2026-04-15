@@ -2,6 +2,10 @@
 
 [中文说明](README.zh-CN.md)
 
+## Demo Video
+
+- Bilibili: https://www.bilibili.com/video/BV165QEBjEX6/
+
 An STM32F103xE motor-control project generated from STM32CubeMX and extended with FreeRTOS scheduling, AS5600 feedback, voltage-mode FOC control without phase-current sensing, a local UART command interface, and an optional voice-command bridge.
 
 ## Overview
