@@ -15,3 +15,11 @@ void app_event_request_status_print(void)
     }
     (void)osEventFlagsSet(s_print_flag, APP_EVENT_STATUS_PRINT);
 }
+
+void app_event_request_cmd_recv(void)
+{
+    if (s_print_flag == NULL) {
+        return;
+    }
+    (void)osEventFlagsSet(s_print_flag, APP_EVENT_CMD_RECV);
+}

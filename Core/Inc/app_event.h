@@ -19,6 +19,7 @@ extern "C" {
 
 void app_event_bind_print_flag(void *flag_handle);
 void app_event_request_status_print(void);
+void app_event_request_cmd_recv(void);
 
 #ifdef __cplusplus
 }

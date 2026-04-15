@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <math.h>
 #include <string.h>
+#include "cmsis_os2.h"
 #include "motor_foc.h"
 #include "motor_control_service.h"
 #include "motor_runtime_param.h"
@@ -14,6 +15,8 @@
 #define VB_CMD_HANDLER_NUM  16
 #define TURN_STEP_RAD  (PI / 4)
 #define UTURN_RAD   (PI)
+#define VB_BRAKE_STEP_RAD         (VB_SPEED_STEP * 0.25f)
+#define VB_BRAKE_INTERVAL_MS      (30u)
 
 typedef enum {
     VB_WAIT_SOF0 = 0,
@@ -42,9 +45,43 @@ static vb_payload_t s_queue[VB_QUEUE_SIZE];
 static volatile uint8_t s_q_head = 0u;
 static volatile uint8_t s_q_tail = 0u; 
 static volatile uint32_t s_q_drop_count = 0u;
+static uint8_t s_brake_active = 0u;
 
 
 static void vb_on_frame_ok(const uint8_t *payload12);
+
+static void vb_brake_cancel(void) {
+    s_brake_active = 0u;
+}
+
+static void vb_brake_step_once(void) {
+    motor_control_context_t ctx;
+    float base = 0.0f;
+    float target = 0.0f;
+
+    if (!s_brake_active) {
+        return;
+    }
+
+    motor_control_get_context(&ctx);
+    base = (ctx.type == control_type_speed) ? ctx.speed : motor_speed;
+
+    if (base > VB_BRAKE_STEP_RAD) {
+        target = base - VB_BRAKE_STEP_RAD;
+    } else if (base < -VB_BRAKE_STEP_RAD) {
+        target = base + VB_BRAKE_STEP_RAD;
+    } else {
+        target = 0.0f;
+        s_brake_active = 0u;
+    }
+
+    motor_control_service_apply_mode(2, target, 0, 0);
+
+    if (s_brake_active) {
+        osDelay(VB_BRAKE_INTERVAL_MS);
+        app_event_request_cmd_recv();
+    }
+}
 
 static uint8_t vb_calc_xor(uint8_t len, const uint8_t *payload) {
     uint8_t x = len;
@@ -186,10 +223,11 @@ static void vb_cmd_decel_handler(const vb_payload_t *payload) {
     motor_control_service_apply_mode(2, target, 0, 0);
 }
 
-static void vb_cmd_estop_handler(const vb_payload_t *payload) {
+static void vb_cmd_brake_handler(const vb_payload_t *payload) {
     (void)payload;
 
-    motor_control_service_estop();
+    s_drive_mode = VB_DRIVE_MODE_SPEED;
+    s_brake_active = 1u;
 }
 
 static void vb_cmd_stop_handler(const vb_payload_t *payload) {
@@ -214,7 +252,7 @@ static void vb_speed_apply_by_dir_request(int desired_dir, const char *tag) {
     curr_dir = vb_get_dir(speed_base, 0.01f);
 
     if (curr_dir == desired_dir) {
-        printf("VB %s: 当前方向已一致\r\n", tag);
+        printf("VB %s: direction already matched\r\n", tag);
         return;
     }
 
@@ -341,7 +379,7 @@ static void vb_cmd_handlers_init(void) {
     vb_cmd_handlers[1]  = NULL;
     vb_cmd_handlers[2]  = vb_cmd_accel_handler;
     vb_cmd_handlers[3]  = vb_cmd_decel_handler;
-    vb_cmd_handlers[4]  = vb_cmd_estop_handler;
+    vb_cmd_handlers[4]  = vb_cmd_brake_handler;
     vb_cmd_handlers[5]  = vb_cmd_stop_handler;
     vb_cmd_handlers[6]  = vb_cmd_turnLeft_handler;
     vb_cmd_handlers[7]  = vb_cmd_turnRight_handler;
@@ -369,10 +407,17 @@ void vb_poll(void) {
         if (frame.command_id < VB_CMD_ID_MIN || frame.command_id > VB_CMD_ID_MAX) {
             continue;
         }
+        if (frame.command_id != 4) {
+            vb_brake_cancel();
+        }
         vb_cmd_handler_t handler = vb_cmd_handlers[frame.command_id];
         if (handler != NULL) handler(&frame);
         
         printf("VB cmd=%d seq=%u prob=%u\r\n", frame.command_id, (unsigned int)frame.seq, (unsigned int)frame.prob_q15);
+    }
+
+    if (s_brake_active) {
+        vb_brake_step_once();
     }
 }
 
@@ -403,6 +448,7 @@ void vb_init(void) {
     // 清队列头尾
     s_q_head = 0u;
     s_q_tail = 0u;
+    s_brake_active = 0u;
 
     s_drive_mode = VB_DRIVE_MODE_POSITION;
 
