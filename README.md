@@ -6,16 +6,16 @@ An STM32F103xE motor-control project generated from STM32CubeMX and extended wit
 
 ## Overview
 
-This repository is structured as a standalone embedded motor-control project:
+This project corresponds to a standalone embedded motor-control system:
 
 - three-phase voltage-mode FOC control on STM32F103xE
 - AS5600-based rotor angle feedback
-- local UART command and runtime telemetry interface
+- local UART command input and runtime status observation
 - optional voice-command ingress from an ESP8266 bridge over USART3
 - multi-loop control paths covering position, speed, and cascaded control modes
 - FreeRTOS task split for sensing, command dispatch, and status printing
 
-The implementation includes electrical-angle alignment and SVPWM modulation, but it does not yet implement phase-current sensing or a true inner current loop. When voice control is enabled, the upstream recognition frontend is provided by a separate ESP32 / ESP8266 project chain.
+The control stack includes electrical-angle alignment and SVPWM modulation, but it does not implement phase-current sensing or a true inner current loop. When voice recognition is enabled, the upstream frontend is provided by a separate ESP32 / ESP8266 project.
 
 ## Runtime Responsibilities
 
@@ -48,7 +48,7 @@ The main runtime path depends on:
 
 ## Processing Flow
 
-The main runtime path is:
+Main processing flow:
 
 1. System startup initializes GPIO, TIM1 PWM, TIM3, USART1, USART3, and RTOS objects
 2. TIM3 drives the control-period interrupt, while `SensorTask` refreshes encoder samples
@@ -59,7 +59,7 @@ The main runtime path is:
 
 ## Voice Command Map
 
-The current voice bridge accepts command IDs `0..15` to remain aligned with the upstream speech-recognition project. Command IDs `0` and `1` are currently reserved and are not mapped to application-level motion actions on the STM32 side.
+The voice bridge accepts command IDs `0..15` to remain aligned with the upstream speech-recognition project. Command IDs `0` and `1` are reserved and are not mapped to application-level motion actions on the STM32 side.
 
 | command_id | meaning |
 | --- | --- |
@@ -83,9 +83,19 @@ The current voice bridge accepts command IDs `0..15` to remain aligned with the 
 ## Control Notes
 
 - `dq`-axis voltage commands are converted into three-phase PWM outputs through inverse Park transformation and SVPWM
-- the current implementation does not use phase-current sensing
-- torque-related control paths are implemented as voltage-command paths rather than true closed-loop current regulation
-- the primary engineering focus is the multi-loop control architecture under constrained sensing conditions
+- the implementation does not use phase-current sensing
+- because the motor driver hardware does not provide ADC current sampling, torque/current-related control paths are approximated through voltage-command paths
+- the control stack uses a multi-loop architecture under constrained sensing conditions
+
+## Hardware Platform
+
+- the target plant is a `2804` outrunner BLDC motor
+- the control platform is based on `STM32F103` and a `SimpleFOC Mini` board
+- rotor position feedback is provided by an `AS5600` magnetic encoder
+- TIM1 is configured for three center-aligned PWM channels, with a PWM frequency of `40 kHz`
+- the STM32 side only needs to configure three PWM channels; the complementary drive topology is provided by the `SimpleFOC Mini` power stage
+- TIM3 drives the main control-period interrupt at `500 Hz`
+- `USART1` is used for the local command console and runtime logs, while `USART3` is reserved for the optional voice-command bridge
 
 ## Requirements
 
@@ -100,4 +110,4 @@ The current voice bridge accepts command IDs `0..15` to remain aligned with the 
 - `Core/Src/usart.c` configures both USART1 and USART3 at `115200`
 - `Drivers/voice_bridge/voice_bridge.h` defines the bridge frame format and command range
 
-If the voice bridge is disabled, the project still supports local UART command control and status output.
+With the voice bridge disabled, the project still supports local UART command control and status output.
